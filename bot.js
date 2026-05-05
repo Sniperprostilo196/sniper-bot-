@@ -43,7 +43,7 @@ function RSI(periodo, valores) {
 // ===== DADOS ===== //
 
 async function getDados(symbol, interval) {
-  const url = https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY};
+  const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY}';
 
   const res = await fetch(url);
   const data = await res.json();
@@ -59,7 +59,7 @@ async function getDados(symbol, interval) {
 // ===== ENVIO ===== //
 
 async function enviarTelegram(msg) {
-  const url = https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage;
+  const url = 'https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage';
 
   await fetch(url, {
     method: "POST",
