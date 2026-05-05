@@ -1,96 +1,85 @@
-const https = require("https");
-
-// ===== VARIÁVEIS =====
+// ================= CONFIG =================
 const API_KEY = process.env.TWELVEDATA_API_KEY;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const CHAT_ID = process.env.CHAT_ID;
 
-// ===== ATIVOS =====
-const pares = ["EUR/USD", "GBP/USD", "USD/JPY"];
+console.log("API KEY TESTE:", API_KEY);
 
-// ===== FUNÇÃO API =====
-function getData(symbol, interval) {
-  return new Promise((resolve, reject) => {
-    const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=50&apikey=${API_KEY}';
+// ================= SERVER (RENDER) =================
+const http = require("http");
 
-    https.get(url, (res) => {
-      let data = "";
+const server = http.createServer((req, res) => {
+  res.end("SNIPER BOT ONLINE 🚀");
+});
 
-      res.on("data", (chunk) => (data += chunk));
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Servidor rodando...");
+});
 
-      res.on("end", () => {
-        try {
-          const json = JSON.parse(data);
-          resolve(json);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }).on("error", reject);
-  });
-}
+// ================= FUNÇÃO DADOS =================
+async function getDados(symbol, interval) {
+  try {
+    const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY}';
 
-// ===== TELEGRAM =====
-function enviarTelegram(msg) {
-  const text = encodeURIComponent(msg);
+    const res = await fetch(url);
+    const data = await res.json();
 
-  const url = 'https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${text}';
-
-  https.get(url, (res) => {
-    res.on("data", () => {});
-  });
-}
-
-// ===== LÓGICA SIMPLES (TESTE) =====
-async function analisar() {
-  for (let symbol of pares) {
-    try {
-      const data = await getData(symbol, "5min");
-
-      if (!data.values) {
-        console.log("Erro dados:", data);
-        continue;
-      }
-
-      const close = parseFloat(data.values[0].close);
-      const open = parseFloat(data.values[0].open);
-
-      let dir = close > open ? "CALL" : "PUT";
-      let score = Math.floor(Math.random() * 5) + 1;
-
-      if (score >= 4) {
-        const msg = `SNIPER PRO
-
-Par: ${symbol}
-Direção: ${dir}
-Score: ${score}/5`;
-
-        console.log(msg);
-        enviarTelegram(msg);
-      }
-
-    } catch (err) {
-      console.log("Erro:", err.message);
+    if (data.status === "error") {
+      console.log("Erro dados:", data);
+      return null;
     }
+
+    return data.values;
+  } catch (e) {
+    console.log("Erro fetch:", e);
+    return null;
   }
 }
 
-// ===== LOOP =====
+// ================= TELEGRAM =================
+async function enviarTelegram(msg) {
+  try {
+    const url = 'https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage';
+
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: msg,
+      }),
+    });
+  } catch (e) {
+    console.log("Erro Telegram:", e);
+  }
+}
+
+// ================= LÓGICA SIMPLES =================
+async function analisar() {
+  const symbol = "EUR/USD";
+
+  const dados = await getDados(symbol, "5min");
+  if (!dados) return;
+
+  const close = parseFloat(dados[0].close);
+  const open = parseFloat(dados[0].open);
+
+  let dir = "NEUTRO";
+
+  if (close > open) dir = "CALL";
+  if (close < open) dir = "PUT";
+
+  const msg = `SNIPER PRO 🚀
+Par: ${symbol}
+Direção: ${dir}
+`;
+
+  console.log(msg);
+  await enviarTelegram(msg);
+}
+
+// ================= LOOP =================
 setInterval(() => {
   console.log("RODANDO...");
   analisar();
 }, 60000);
-
-// ===== SERVIDOR (OBRIGATÓRIO RENDER) =====
-const express = require("express");
-const app = express();
-
-app.get("/", (req, res) => {
-  res.send("SNIPER BOT ONLINE 🚀");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Servidor rodando na porta " + PORT);
-});
