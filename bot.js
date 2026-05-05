@@ -127,7 +127,7 @@ async function analisar(symbol) {
     }
 
     if (dir) {
-      const msg = SNIPER PRO\nPar: ${symbol}\nDireção: ${dir}\nScore: ${score};
+      const msg = 'SNIPER PRO\nPar: ${symbol}\nDireção: ${dir}\nScore: ${score}';
       console.log(msg);
 
       await enviarTelegram(msg);
