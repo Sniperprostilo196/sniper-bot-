@@ -41,7 +41,7 @@ function RSI(periodo, valores) {
 // ===== DADOS ===== //
 
 async function getDados(symbol, interval) {
-  const url = https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY};
+  const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY}';
 
   const res = await fetch(url);
   const data = await res.json();
