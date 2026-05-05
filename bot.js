@@ -28,11 +28,13 @@ function RSI(periodo, valores) {
   let ganhos = 0;
   let perdas = 0;
 
-  for (let i = 1; i < periodo; i++) {
+  for (let i = 1; i < valores.length; i++) {
     const diff = valores[i] - valores[i - 1];
     if (diff >= 0) ganhos += diff;
     else perdas -= diff;
   }
+
+  if (perdas === 0) return 100;
 
   const rs = ganhos / perdas;
   return 100 - (100 / (1 + rs));
@@ -41,10 +43,15 @@ function RSI(periodo, valores) {
 // ===== DADOS ===== //
 
 async function getDados(symbol, interval) {
-  const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY}';
+  const url = https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY};
 
   const res = await fetch(url);
   const data = await res.json();
+
+  if (!data.values) {
+    console.log("Erro dados:", data);
+    return null;
+  }
 
   return data.values.reverse();
 }
@@ -56,7 +63,7 @@ async function enviarTelegram(msg) {
 
   await fetch(url, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: TELEGRAM_CHAT_ID,
       text: msg
@@ -89,6 +96,8 @@ async function analisar(symbol) {
     const h1 = await getDados(symbol, "1h");
     const h4 = await getDados(symbol, "4h");
 
+    if (!m5 || !m15 || !h1 || !h4) return;
+
     const closeM5 = m5.map(c => parseFloat(c.close));
 
     const ema50 = EMA(50, closeM5);
@@ -109,10 +118,10 @@ async function analisar(symbol) {
     let score = 0;
     let dir = null;
 
-    // anti lateral
+    // ===== ANTI LATERAL ===== //
     if (Math.abs(ema50 - ema200) < 0.0005) return;
 
-    // CALL
+    // ===== CALL ===== //
     if (ema50_15 > ema200_15 && ema50_h1 > ema200_h1 && ema50_h4 > ema200_h4) {
       score += 3;
 
@@ -122,7 +131,7 @@ async function analisar(symbol) {
       if (score >= 5) dir = "CALL";
     }
 
-    // PUT
+    // ===== PUT ===== //
     if (ema50_15 < ema200_15 && ema50_h1 < ema200_h1 && ema50_h4 < ema200_h4) {
       score += 3;
 
@@ -133,7 +142,7 @@ async function analisar(symbol) {
     }
 
     if (dir) {
-      const msg = SNIPER PRO\n\n${symbol}\n${dir}\nScore: ${score};
+      const msg = SNIPER PRO\n\nPar: ${symbol}\nDireção: ${dir}\nScore: ${score};
 
       console.log(msg);
 
