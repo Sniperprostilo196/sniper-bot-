@@ -16,22 +16,45 @@ server.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando...");
 });
 
-// ================= FUNÇÃO DADOS =================
+// ================= VALIDAÇÃO DA API =================
+async function validarAPI() {
+  const url = 'https://api.twelvedata.com/time_series?symbol=EURUSD&interval=5min&outputsize=1&apikey=${API_KEY}';
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === "error") {
+      console.log("❌ API BLOQUEADA:", data);
+      return false;
+    }
+
+    console.log("✅ API OK");
+    return true;
+  } catch (e) {
+    console.log("❌ ERRO NA API:", e);
+    return false;
+  }
+}
+
+// ================= BUSCAR DADOS =================
 async function getDados(symbol, interval) {
   try {
-    const url = 'https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${API_KEY}';
+    const safeSymbol = encodeURIComponent(symbol);
+
+    const url = 'https://api.twelvedata.com/time_series?symbol=${safeSymbol}&interval=${interval}&outputsize=50&apikey=${API_KEY}';
 
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status === "error") {
-      console.log("Erro dados:", data);
+      console.log("❌ ERRO API:", data);
       return null;
     }
 
     return data.values;
   } catch (e) {
-    console.log("Erro fetch:", e);
+    console.log("❌ ERRO FETCH:", e);
     return null;
   }
 }
@@ -43,20 +66,22 @@ async function enviarTelegram(msg) {
 
     await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         chat_id: CHAT_ID,
-        text: msg,
-      }),
+        text: msg
+      })
     });
   } catch (e) {
-    console.log("Erro Telegram:", e);
+    console.log("❌ ERRO TELEGRAM:", e);
   }
 }
 
-// ================= LÓGICA SIMPLES =================
+// ================= LÓGICA =================
 async function analisar() {
-  const symbol = "EUR/USD";
+  const symbol = "EURUSD"; // SEM BARRA
 
   const dados = await getDados(symbol, "5min");
   if (!dados) return;
@@ -71,15 +96,25 @@ async function analisar() {
 
   const msg = `SNIPER PRO 🚀
 Par: ${symbol}
-Direção: ${dir}
-`;
+Direção: ${dir}`;
 
   console.log(msg);
   await enviarTelegram(msg);
 }
 
 // ================= LOOP =================
-setInterval(() => {
-  console.log("RODANDO...");
-  analisar();
-}, 60000);
+async function iniciar() {
+  const apiOK = await validarAPI();
+
+  if (!apiOK) {
+    console.log("⛔ PARANDO BOT - API INVÁLIDA");
+    return;
+  }
+
+  setInterval(() => {
+    console.log("RODANDO...");
+    analisar();
+  }, 60000);
+}
+
+iniciar();
