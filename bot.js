@@ -1,22 +1,16 @@
-require("dotenv").config();
-const fetch = require("node-fetch");
 const express = require("express");
 
 const app = express();
 
 // ================= CONFIG =================
 
-// 🔥 CHAVE BACKUP (GARANTIA TOTAL)
-const API_KEY_FALLBACK = "9de65d51224f432f8ba14beb5e4fa505";
-
-// tenta pegar do Render, senão usa fallback
-const API_KEY = process.env.API_KEY || API_KEY_FALLBACK;
+const API_KEY = "9de65d51224f432f8ba14beb5e4fa505";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // ================= LOG =================
-console.log("API_KEY EM USO:", API_KEY ? "OK" : "ERRO");
+console.log("API_KEY:", API_KEY ? "OK" : "ERRO");
 
 // ================= SERVIDOR =================
 app.get("/", (req, res) => {
@@ -24,8 +18,9 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
-  console.log("Servidor rodando...");
+  console.log("Servidor rodando na porta", PORT);
 });
 
 // ================= TESTE API =================
@@ -147,7 +142,7 @@ Expiração: 1min`;
 
     await enviarTelegram(msg);
 
-  }, 60000); // 1 minuto
+  }, 60000);
 }
 
 iniciar();
