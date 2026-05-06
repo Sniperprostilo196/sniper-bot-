@@ -1,27 +1,7 @@
-const express = require("express");
-
-const app = express();
-
 // ================= CONFIG =================
 
+// 🔥 COLOCA SUA CHAVE AQUI
 const API_KEY = "9de65d51224f432f8ba14beb5e4fa505";
-
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-
-// ================= LOG =================
-console.log("API_KEY:", API_KEY ? "OK" : "ERRO");
-
-// ================= SERVIDOR =================
-app.get("/", (req, res) => {
-  res.send("Bot online 🚀");
-});
-
-const PORT = process.env.PORT || 10000;
-
-app.listen(PORT, () => {
-  console.log("Servidor rodando na porta", PORT);
-});
 
 // ================= TESTE API =================
 async function testarAPI() {
@@ -45,31 +25,7 @@ async function testarAPI() {
   }
 }
 
-// ================= TELEGRAM =================
-async function enviarTelegram(msg) {
-  if (!TELEGRAM_TOKEN || !CHAT_ID) {
-    console.log("⚠️ Telegram não configurado");
-    return;
-  }
-
-  try {
-    await fetch('https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: msg
-      })
-    });
-
-  } catch (err) {
-    console.log("Erro Telegram:", err);
-  }
-}
-
-// ================= DADOS =================
+// ================= BUSCAR DADOS =================
 async function getDados() {
   try {
     const url = 'https://api.twelvedata.com/time_series?symbol=EUR/USD&interval=1min&outputsize=50&apikey=${API_KEY}';
@@ -81,7 +37,7 @@ async function getDados() {
       console.log("❌ ERRO API:", data);
 
       if (data.code === 401) {
-        console.log("⛔ BLOQUEADO - PARANDO BOT");
+        console.log("⛔ API BLOQUEADA - PARANDO BOT");
         process.exit(1);
       }
 
@@ -115,11 +71,11 @@ async function iniciar() {
   const apiOk = await testarAPI();
 
   if (!apiOk) {
-    console.log("⛔ BOT NÃO INICIADO - PROBLEMA NA API");
+    console.log("⛔ BOT NÃO INICIADO");
     return;
   }
 
-  console.log("🚀 BOT INICIADO");
+  console.log("🚀 BOT RODANDO");
 
   setInterval(async () => {
 
@@ -133,14 +89,7 @@ async function iniciar() {
 
     if (!dir) return;
 
-    const msg = `🚀 SNIPER PRO
-Par: EUR/USD
-Direção: ${dir}
-Expiração: 1min`;
-
-    console.log(msg);
-
-    await enviarTelegram(msg);
+    console.log('🚀 SINAL: EUR/USD | ${dir}');
 
   }, 60000);
 }
