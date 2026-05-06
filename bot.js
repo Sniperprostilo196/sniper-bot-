@@ -1,70 +1,64 @@
+require("dotenv").config();
+const fetch = require("node-fetch");
+const express = require("express");
+
+const app = express();
+
 // ================= CONFIG =================
-const API_KEY = process.env.TWELVEDATA_API_KEY;
+
+// 🔥 CHAVE BACKUP (GARANTIA TOTAL)
+const API_KEY_FALLBACK = "9de65d51224f432f8ba14beb5e4fa505";
+
+// tenta pegar do Render, senão usa fallback
+const API_KEY = process.env.API_KEY || API_KEY_FALLBACK;
+
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CHAT_ID = process.env.CHAT_ID;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-console.log("API KEY TESTE:", API_KEY);
+// ================= LOG =================
+console.log("API_KEY EM USO:", API_KEY ? "OK" : "ERRO");
 
-// ================= SERVER (RENDER) =================
-const http = require("http");
-
-const server = http.createServer((req, res) => {
-  res.end("SNIPER BOT ONLINE 🚀");
+// ================= SERVIDOR =================
+app.get("/", (req, res) => {
+  res.send("Bot online 🚀");
 });
 
-server.listen(process.env.PORT || 3000, () => {
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
   console.log("Servidor rodando...");
 });
 
-// ================= VALIDAÇÃO DA API =================
-async function validarAPI() {
-  const url = 'https://api.twelvedata.com/time_series?symbol=EURUSD&interval=5min&outputsize=1&apikey=${API_KEY}';
+// ================= TESTE API =================
+async function testarAPI() {
+  const url = 'https://api.twelvedata.com/time_series?symbol=EUR/USD&interval=1min&outputsize=1&apikey=${API_KEY}';
 
   try {
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status === "error") {
-      console.log("❌ API BLOQUEADA:", data);
+      console.log("❌ API INVÁLIDA:", data);
       return false;
     }
 
     console.log("✅ API OK");
     return true;
-  } catch (e) {
-    console.log("❌ ERRO NA API:", e);
+
+  } catch (err) {
+    console.log("Erro conexão API:", err);
     return false;
-  }
-}
-
-// ================= BUSCAR DADOS =================
-async function getDados(symbol, interval) {
-  try {
-    const safeSymbol = encodeURIComponent(symbol);
-
-    const url = 'https://api.twelvedata.com/time_series?symbol=${safeSymbol}&interval=${interval}&outputsize=50&apikey=${API_KEY}';
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.status === "error") {
-      console.log("❌ ERRO API:", data);
-      return null;
-    }
-
-    return data.values;
-  } catch (e) {
-    console.log("❌ ERRO FETCH:", e);
-    return null;
   }
 }
 
 // ================= TELEGRAM =================
 async function enviarTelegram(msg) {
-  try {
-    const url = 'https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage';
+  if (!TELEGRAM_TOKEN || !CHAT_ID) {
+    console.log("⚠️ Telegram não configurado");
+    return;
+  }
 
-    await fetch(url, {
+  try {
+    await fetch('https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage', {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -74,47 +68,86 @@ async function enviarTelegram(msg) {
         text: msg
       })
     });
-  } catch (e) {
-    console.log("❌ ERRO TELEGRAM:", e);
+
+  } catch (err) {
+    console.log("Erro Telegram:", err);
   }
 }
 
-// ================= LÓGICA =================
-async function analisar() {
-  const symbol = "EURUSD"; // SEM BARRA
+// ================= DADOS =================
+async function getDados() {
+  try {
+    const url = 'https://api.twelvedata.com/time_series?symbol=EUR/USD&interval=1min&outputsize=50&apikey=${API_KEY}';
 
-  const dados = await getDados(symbol, "5min");
-  if (!dados) return;
+    const res = await fetch(url);
+    const data = await res.json();
 
-  const close = parseFloat(dados[0].close);
-  const open = parseFloat(dados[0].open);
+    if (data.status === "error") {
+      console.log("❌ ERRO API:", data);
 
-  let dir = "NEUTRO";
+      if (data.code === 401) {
+        console.log("⛔ BLOQUEADO - PARANDO BOT");
+        process.exit(1);
+      }
 
-  if (close > open) dir = "CALL";
-  if (close < open) dir = "PUT";
+      return null;
+    }
 
-  const msg = `SNIPER PRO 🚀
-Par: ${symbol}
-Direção: ${dir}`;
+    return data.values;
 
-  console.log(msg);
-  await enviarTelegram(msg);
+  } catch (err) {
+    console.log("Erro dados:", err);
+    return null;
+  }
+}
+
+// ================= ESTRATÉGIA =================
+function analisar(dados) {
+  if (!dados || dados.length < 2) return null;
+
+  const atual = parseFloat(dados[0].close);
+  const anterior = parseFloat(dados[1].close);
+
+  if (atual > anterior) return "CALL";
+  if (atual < anterior) return "PUT";
+
+  return null;
 }
 
 // ================= LOOP =================
 async function iniciar() {
-  const apiOK = await validarAPI();
 
-  if (!apiOK) {
-    console.log("⛔ PARANDO BOT - API INVÁLIDA");
+  const apiOk = await testarAPI();
+
+  if (!apiOk) {
+    console.log("⛔ BOT NÃO INICIADO - PROBLEMA NA API");
     return;
   }
 
-  setInterval(() => {
+  console.log("🚀 BOT INICIADO");
+
+  setInterval(async () => {
+
     console.log("RODANDO...");
-    analisar();
-  }, 60000);
+
+    const dados = await getDados();
+
+    if (!dados) return;
+
+    const dir = analisar(dados);
+
+    if (!dir) return;
+
+    const msg = `🚀 SNIPER PRO
+Par: EUR/USD
+Direção: ${dir}
+Expiração: 1min`;
+
+    console.log(msg);
+
+    await enviarTelegram(msg);
+
+  }, 60000); // 1 minuto
 }
 
 iniciar();
